@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import config
+from config import params
 from checkpoints import save_model
 import torchvision.utils as vutils
 import os
@@ -17,11 +17,11 @@ class Trainer(object):
 
         # optimizer
         self.optimizer_G = optim.Adam(G.parameters(),
-                                      lr=config.g_lr,
-                                      betas=config.betas)
+                                      lr=params.g_lr,
+                                      betas=(params.beta_a, params.beta_b))
         self.optimizer_D = optim.Adam(D.parameters(),
-                                      lr=config.d_lr,
-                                      betas=config.betas)
+                                      lr=params.d_lr,
+                                      betas=(params.beta_a, params.beta_b))
 
 
     def train(self, train_loader):
@@ -32,10 +32,10 @@ class Trainer(object):
         self.D.train()
 
 
-        sample_z_batch = torch.randn(config.batch_size, config.z_dim).cuda() # fix noise
+        sample_z_batch = torch.randn(params.batch_size, params.z_dim).cuda() # fix noise
 
         len_data_loader = len(train_loader)
-        for epoch in range(config.max_epoch):
+        for epoch in range(params.max_epoch):
             for step, (images,_) in enumerate(train_loader):
 
                 #######################
@@ -45,7 +45,7 @@ class Trainer(object):
                 self.optimizer_D.zero_grad()
 
                 images = images.cuda()
-                z = torch.randn(images.size(0), config.z_dim).cuda()
+                z = torch.randn(images.size(0), params.z_dim).cuda()
 
                 predict_real = self.D(images)
                 probability_real = predict_real.mean().item()
@@ -77,11 +77,11 @@ class Trainer(object):
 
 
                 # log information
-                if (step+1) % config.log_step == 0:
+                if (step+1) % params.log_step == 0:
                     print('Epoch [{}/{}] Step [{}/{}]: '
                           'd_loss={:.5f} g_loss={:.5f} real_avgP={:.4f} fake_avgP={:.4f}'
                           .format(epoch+1,
-                                  config.max_epoch,
+                                  params.max_epoch,
                                   step+1,
                                   len_data_loader,
                                   d_loss,
@@ -94,13 +94,13 @@ class Trainer(object):
                     samples = self.G(sample_z_batch)
                     samples = samples.detach().cpu()
                     vutils.save_image(samples,
-                                      os.path.join(config.samples_root,'train_{:02d}_{:04d}.png'.format(epoch+1,step+1)),
+                                      os.path.join(params.samples_root,'train_{:02d}_{:04d}.png'.format(epoch+1,step+1)),
                                       normalize=True)
-                    print('[*]save samples in',os.path.join(config.samples_root,'train_{:02d}_{:04d}.png'.format(epoch+1,step+1)))
+                    print('[*]save samples in',os.path.join(params.samples_root,'train_{:02d}_{:04d}.png'.format(epoch+1,step+1)))
 
 
             #save model
-            if epoch % config.save_epoch == 0:
+            if epoch % params.save_epoch == 0:
                 save_model(self.G, 'Generator-{}.pt'.format(epoch+1))
                 save_model(self.D, 'Discriminator-{}.pt'.format(epoch+1))
 
@@ -120,10 +120,10 @@ class Trainer(object):
 
         self.G.eval()
 
-        iterations = N // config.batch_size
+        iterations = N // params.batch_size
         count = 0
         for i in range(iterations):
-            z = torch.randn(config.batch_size, config.z_dim).cuda()
+            z = torch.randn(params.batch_size, params.z_dim).cuda()
             samples = self.G(z)
             samples = samples.detach().cpu()
             for image in samples:
